@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スプラトゥーン勝率トラッカー (ブキ読み仮名検索)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        .card {
+            background-color: #fdfdfd;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .card h3 {
+            margin-top: 0;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            color: #3498db;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input[type="text"], input[type="number"]{
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group {
+             margin-bottom: 15px;
+        }
+        .kd-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .win-loss-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #27ae60;
+        }
+        #results-display {
+            text-align: center;
+            font-size: 1.2em;
+        }
+        #results-display .rate-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        #results-display .rate-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .win-rate { color: #e74c3c; }
+        .kill-rate { color: #3498db; }
+        #history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #history-table th, #history-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        #history-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        #history-table td:nth-child(1),
+        #history-table td:nth-child(2),
+        #history-table td:nth-child(3) {
+            text-align: left;
+        }
+        .delete-btn {
+            padding: 5px 10px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>スプラ勝率計算機</h1>
+
+        <div class="grid-container">
+            <div class="card">
+                <h3>試合結果</h3>
+                <form id="add-match-form">
+                    <div class="form-group">
+                        <label for="input-weapon">ブキ</label>
+                        <input type="text" id="search-input-weapon" placeholder="ブキ名">
+                        <select id="input-weapon" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-rule">ルール</label>
+                        <select id="input-rule" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-stage">ステージ</label>
+                        <input type="text" id="search-input-stage" placeholder="ステージ名">
+                        <select id="input-stage" required></select>
+                    </div>
+                    <div class="kd-inputs">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="input-kills">キル数</label>
+                            <input type="number" id="input-kills" min="0" value="0" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="input-deaths">デス数</label>
+                            <input type="number" id="input-deaths" min="0" value="0" required>
+                        </div>
+                    </div>
+                    <div class="win-loss-group">
+                        <label><input type="radio" name="result" value="win" checked> 勝ち</label>
+                        <label><input type="radio" name="result" value="loss"> 負け</label>
+                    </div>
+                    <button type="submit">試合を記録する</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>勝率計算</h3>
+                <div class="form-group">
+                    <label for="filter-weapon">ブキ</label>
+                    <input type="text" id="search-filter-weapon" placeholder="ブキ名">
+                    <select id="filter-weapon"></select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-rule">ルール</label>
+                    <select id="filter-rule"></select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-stage">ステージ</label>
+                    <input type="text" id="search-filter-stage" placeholder="ステージ名">
+                    <select id="filter-stage"></select>
+                </div>
+                <div id="results-display">
+                    <p>勝率</p>
+                    <div class="win-rate">-.--%</div>
+                    <p><span id="total-wins">0</span>勝 <span id="total-losses">0</span>敗 / <span id="total-matches">0</span>試合</p>
+                </div>
+                <div>
+                    <p>K/Dレート</p>
+                    <div class="rate-value kill-rate">-.--</div>
+                    <p><span id="total-kills">0</span>K <span id="total-deaths">0</span>D</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h3>📋 試合履歴</h3>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>ブキ</th>
+                            <th>ルール</th>
+                            <th>ステージ</th>
+                            <th>結果</th>
+                            <th>K/D</th>
+                            <th>削除</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- データ定義 ---
+        // ★★★ ブキデータをオブジェクト配列に変更 ★★★
+        const weapons = [
+            {name:"わかばシューター",yomi:"わかばシューター"},
+            {name:"スプラシューター",yomi:"すぷらしゅーたー" },
+            {name:"プロモデラーMG",yomi:"ぷろもでらーえむじー" },
+            {name:"N-ZAP85",yomi:"えぬざっぷはちじゅうご" },
+            {name:"もみじシューター",yomi:"もみじシューター"},
+            {name:"スペースシューター",yomi:"スペースシューター"},
+            {name:"ボールドマーカー",yomi:"ボールドマーカー"},
+            {name:"プライムシューター",yomi:"プライムシューター"},
+            {name:"スプラシューターコラボ",yomi:"スプラシューターコラボ"},
+            {name:"52ガロン",yomi:"ゴーニーがろん"},
+            {name:"N-ZAP89",yomi:"えぬざっぷはちじゅうきゅう"},
+            {name:"スペースシューターコラボ",yomi:"スペースシューターコラボ"},
+            {name:"L3リールガン",yomi:"えるさんリールがん"},
+            {name:"ボールドマーカーネオ",yomi:"ボールドマーカーねお"},
+            {name:"52ガロンデコ",yomi:"ゴーニーがろんデコ"},
+            {name:"ジェットスイーパー",yomi:"ジェットスイーパー"},
+            {name:"シャープマーカー",yomi:"シャープマーカー"},
+            {name:"96ガロン",yomi:"きゅうろくガロン"},
+            {name:"プロモデラーRG",yomi:"ぷろもでらーあーるじー"},
+            {name:"L3リールガンD",yomi:"えるさんリールがんディー"},
+            {name:"ボトルガイザー",yomi:"ボトルガイザー"},
+            {name:"プライムシューターコラボ",yomi:"プライムシューターコラボ"},
+            {name:"ジェットスイーパーカスタム",yomi:"ジェットスイーパーカスタム"},
+            {name:"シャープマーカーネオ",yomi:"シャープマーカーねお"},
+            {name:"96ガロンデコ",yomi:"きゅうろくガロンデコ"},
+            {name:"H3リールガン",yomi:"えいちすりーりーるがん" },
+            {name:"ヒーロシューターレプリカ",yomi:"ヒーロシューターレプリカ"},
+            {name:"オーダーシューターレプリカ",yomi:"オーダーシューターレプリカ"},
+            {name:"オクタシューターレプリカ",yomi:"オクタシューターレプリカ"},
+            {name:"スプラローラー",yomi:"スプラローラー"},
+            {name:"カーボンローラー",yomi:"カーボンローラー"},
+            {name:"スプラローラーコラボ",yomi:"スプラローラーコラボ"},
+            {name:"ダイナモローラー",yomi:"ダイナモローラー"},
+            {name:"ワイドローラー",yomi:"ワイドローラー"},
+            {name:"ダイナモローラーテスラ",yomi:"ダイナモローラーてすら"},
+            {name:"ワイドローラーコラボ",yomi:"ワイドローラーコラボ"},
+            {name:"ヴァリアブルローラー",yomi:"ヴァリアブルローラー"},
+            {name:"カーボンローラーデコ",yomi:"カーボンローラーデコ"},
+            {name:"ヴァリアブルローラーフォイル",yomi:"ヴァリアブルローラーフォイル"},
+            {name:"オーダーローラーレプリカ",yomi:"オーダーローラーレプリカ"},
+            {name:"スプラチャージャー",yomi:"スプラチャージャー"},
+            {name:"スクイックリンα",yomi:"すくいっくりんあるふぁ"},
+            {name:"スプラチャージャーコラボ",yomi:"スプラチャージャーコラボ"},
+            {name:"スプラスコープ",yomi:"スプラスコープ"},
+            {name:"スクイックリンβ",yomi:"すくいっくりんベータ"},
+            {name:"R-PEN/5H",yomi:"アールペンゴーえいち"},
+            {name:"スプラスコープコラボ",yomi:"スプラスコープコラボ"},
+            {name:"リッター4K",yomi:"リッターよんけー"},
+            {name:"R-PEN/5B",yomi:"アールペンゴービー"},
+            {name:"リッター4Kカスタム",yomi:"リッターよんけーカスタム"},
+            {name:"14式竹筒銃・甲",yomi:"じゅうよんしきたけつつじゅうこう"},
+            {name:"ソイチューバー",yomi:"ソイチューバー"},
+            {name:"14式竹筒銃・乙",yomi:"じゅうよんしきたけつつじゅうおつ"},
+            {name:"4Kスコープ",yomi:"よんけースコープ"},
+            {name:"ソイチューバーカスタム",yomi:"ソイチューバーカスタム"},
+            {name:"4Kスコープカスタム",yomi:"よんけースコープカスタム"},
+            {name:"オーダーチャージャーレプリカ",yomi:"オーダーチャージャーレプリカ"},
+            {name:"バケットスロッシャー",yomi:"バケットスロッシャー"},
+            {name:"ヒッセン",yomi:"ヒッセン"},
+            {name:"バケットスロッシャーデコ",yomi:"バケットスロッシャーデコ"},
+            {name:"スクリュースロッシャー",yomi:"スクリュースロッシャー"},
+            {name:"モップリン",yomi:"モップリン"},
+            {name:"ヒッセンヒュー",yomi:"ヒッセンヒュー"},
+            {name:"モップリンD",yomi:"モップリンディー"},
+            {name:"オーバーフロッシャー",yomi:"オーバーフロッシャー"},
+            {name:"スクリュースロッシャーネオ",yomi:"スクリュースロッシャーネオ"},
+            {name:"オーバーフロッシャーデコ",yomi:"オーバーフロッシャーデコ"},
+            {name:"エクスプロッシャー",yomi:"エクスプロッシャー"},
+            {name:"エクスプロッシャーカスタム",yomi:"エクスプロッシャーカスタム"},
+            {name:"オーダースロッシャーレプリカ",yomi:"オーダースロッシャーレプリカ"},
+            {name:"バレルスピナー",yomi:"バレルスピナー"},
+            {name:"スプラスピナー",yomi:"スプラスピナー"},
+            {name:"イグザミナー",yomi:"イグザミナー"},
+            {name:"バレルスピナーデコ",yomi:"バレルスピナーデコ"},
+            {name:"イグザミナーヒュー",yomi:"イグザミナーヒュー"},
+            {name:"ハイドラント",yomi:"ハイドラント"},
+            {name:"ハイドラントカスタム",yomi:"ハイドラントカスタム"},
+            {name:"スプラスピナーコラボ",yomi:"スプラスピナーコラボ"},
+            {name:"ノーチラス47",yomi:"ノーチラスよんじゅうなな"},
+            {name:"ノーチラス79",yomi:"ノーチラスななじゅうきゅう"},
+            {name:"クーゲルシュライバー",yomi:"クーゲルシュライバー"},
+            {name:"クーゲルシュライバーヒュー",yomi:"クーゲルシュライバーヒュー"},
+            {name:"オーダースピナーレプリカ",yomi:"オーダースピナーレプリカ"},
+            {name:"スプラマニューバー",yomi:"スプラマニューバー"},
+            {name:"デュアルスイーパー",yomi:"デュアルスイーパー"},
+            {name:"スプラマニューバーコラボ",yomi:"スプラマニューバーコラボ"},
+            {name:"スパッタリー",yomi:"スパッタリー"},
+            {name:"デュアルスイーパーカスタム",yomi:"デュアルスイーパーカスタム"},
+            {name:"クアッドホッパー",yomi:"クアッドホッパー"},
+            {name:"ケルビン525",yomi:"ケルビンゴーニーゴー"},
+            {name:"ガエンFF",yomi:"がえんえふえふ"},
+            {name:"クアッドホッパーホワイト",yomi:"クアッドホッパーホワイト"},
+            {name:"スパッタリーヒュー",yomi:"スパッタリーヒュー"},
+            {name:"ケルビン525デコ",yomi:"ケルビンゴーニーゴーデコ"},
+            {name:"ガエンFFカスタム",yomi:"がえんえふえふカスタム"},
+            {name:"オーダーマニューバーレプリカ",yomi:"オーダーマニューバーレプリカ"},
+            {name:"パラシェルター",yomi:"パラシェルター"},
+            {name:"24式張替傘・甲",yomi:"にじゅうよんしきはりかえかさこう"},
+            {name:"キャンピングシェルター",yomi:"キャンピングシェルターキャンプ"},
+            {name:"スパイガジェット",yomi:"スパイガジェット"},
+            {name:"パラシェルターソレーラ",yomi:"パラシェルターソレーラ"},
+            {name:"24式張替傘・乙",yomi:"にじゅうよんしきはりかえかさおつ"},
+            {name:"キャンピングシェルターソレーラ",yomi:"キャンピングシェルターソレーラ"},
+            {name:"スパイガジェットソレーラ",yomi:"スパイガジェットソレーラ"},
+            {name:"オーダーシェルターレプリカ",yomi:"オーダーシェルターレプリカ"},
+            {name:"ホットブラスター",yomi:"ホットブラスター"},
+            {name:"ラピッドブラスター",yomi:"ラピッドブラスター"},
+            {name:"ホットブラスターカスタム",yomi:"ホットブラスターカスタム"},
+            {name:"ラピッドブラスターデコ",yomi:"ラピッドブラスターデコ"},
+            {name:"ロングブラスター",yomi:"ロングブラスター"},
+            {name:"ノヴァブラスター",yomi:"ノヴァブラスター"},
+            {name:"ロングブラスターカスタム",yomi:"ロングブラスターカスタム"},
+            {name:"S-BLAST92",yomi:"エスブラストきゅうじゅうに"},
+            {name:"クラッシュブラスター",yomi:"クラッシュブラスター"},
+            {name:"ノヴァブラスターネオ",yomi:"ノヴァブラスターネオ"},
+            {name:"Rブラスターエリート",yomi:"あーるブラスターエリート"},
+            {name:"S-BLAST91",yomi:"エスブラストきゅうじゅういち"},
+            {name:"Rブラスターエリートデコ",yomi:"あーるブラスターエリートでこ"},
+            {name:"オーダーブラスターレプリカ",yomi:"オーダーブラスターレプリカ"},
+            {name:"ホクサイ",yomi:"ホクサイ"},
+            {name:"パブロ",yomi:"パブロ"},
+            {name:"ホクサイヒュー",yomi:"ホクサイヒュー"},
+            {name:"フィンセント",yomi:"フィンセント"},
+            {name:"パブロヒュー",yomi:"パブロヒュー"},
+            {name:"フィンセントヒュー",yomi:"フィンセントヒュー"},
+            {name:"オーダーブラシレプリカ",yomi:"オーダーブラシレプリカ"},
+            {name:"トライストリンガー",yomi:"トライストリンガー"},
+            {name:"LACT-450",yomi:"ラクトよんひゃくごじゅう"},
+            {name:"トライストリンガーコラボ",yomi:"トライストリンガーコラボ"},
+            {name:"LACT-450デコ",yomi:"ラクトよんひゃくごじゅうデコ"},
+            {name:"フルイドV",yomi:"フルイドぶい"},
+            {name:"フルイドVカスタム",yomi:"フルイドぶいカスタム"},
+            {name:"オーダーストリンガーレプリカ",yomi:"オーダーストリンガーレプリカ"},
+            {name:"ドライブワイパー",yomi:"ドライブワイパー"},
+            {name:"ドライブワイパーデコ",yomi:"ドライブワイパーデコ"},
+            {name:"ジムワイパー",yomi:"ジムワイパー"},
+            {name:"ジムワイパーヒュー",yomi:"ジムワイパーヒュー"},
+            {name:"デンタルワイパーミント",yomi:"デンタルワイパーミント"},
+            {name:"デンタルワイパースミ",yomi:"デンタルワイパースミ"},
+            {name:"オーダーワイパーレプリカ",yomi:"オーダーワイパーレプリカ"},
+            {name:"シャープマーカーGECK",yomi:"シャープマーカーゲッコー"},
+            {name:"カーボンローラーANGL",yomi:"カーボンローラーアングラー"},
+            {name:"スパッタリーOWL",yomi:"スパッタリーアウル"},
+            {name:"フィンセントBRNZ",yomi:"フィンセントブロンズ"},
+            {name:"ヒッセンASH",yomi:"ヒッセンアッシュ"},
+            {name:"ドライブワイパーRUST",yomi:"ドライブワイパーラスト"},
+            {name:"スプラチャージャーFRST",yomi:"スプラチャージャーフォレスト"},
+            {name:"スプラスコープFRST",yomi:"スプラスコープフォレスト"},
+            {name:"プライムシューターFRZN",yomi:"プライムシューターフローズン"},
+            {name:"RブラスターエリートWNTR",yomi:"あーるブラスターエリートウィンター"},
+            {name:"ジェットスイーパーCOBR",yomi:"ジェットスイーパーコブラ"},
+            {name:"スプラスピナーPYTN",yomi:"スプラスピナーパイソン"},
+            {name:"H3リールガンSNAK",yomi:"えいちさんリールガンスネーク"},
+            {name:"LACT-450MILK",yomi:"ラクトよんひゃくごじゅうミルク"},
+            {name:"キャンピングシェルターCREM",yomi:"キャンピングシェルタークリーム"},
+            {name:"スプラシューター煌",yomi:"スプラシューターこう"},
+            {name:"ホットブラスター艶",yomi:"ホットブラスターエン"},
+            {name:"プロモデラー彩",yomi:"プロモデラーさい"},
+            {name:"96ガロン爪",yomi:"きゅうろくガロンそう"},
+            {name:"モップリン角",yomi:"モップリンかく"},
+            {name:"デュアルスイーパー蹄",yomi:"デュアルスイーパーてい"},
+            {name:"ジムワイパー封",yomi:"ジムワイパーふう"},
+            {name:"ハイドラント圧",yomi:"ハイドラントアツ"},
+            {name:"スパイガジェット繚",yomi:"スパイガジェットりょう"},
+            {name:"スプラマニューバー耀",yomi:"スプラマニューバーよう"},
+            {name:"ワイドローラー惑",yomi:"ワイドローラーワク"},
+            {name:"L3リールガン箔",yomi:"エルさんリールガンはく"},
+            {name:"ホクサイ彗",yomi:"ホクサイスイ"},
+            {name:"トライストリンガー燈",yomi:"トライストリンガーとう"},
+            {name:"ダイナモローラー冥",yomi:"ダイナモローラーめい"},
+        ];
+        const rules = ["ナワバリバトル", "ガチエリア", "ガチヤグラ", "ガチホコバトル", "ガチアサリ"];
+        const stages = [
+            {name:"タカアシ経済特区",yomi:"タカアシけいざいとっく"},
+            {name:"クサヤ温泉",yomi:"クサヤおんせん"},
+            {name:"ナンプラー遺跡",yomi:"ナンプラーいせき"},
+            {name:"タラポート",yomi:"タラポート"},
+            {name:"オヒョウ海運",yomi:"オヒョウかいうん"},
+            {name:"バイガイ亭",yomi:"バイガイてい"},
+            {name:"カジキ空港",yomi:"カジキくうこう"},
+            {name:"リュウグウターミナル",yomi:"リュウグウターミナル"},
+            {name:"マサバ海峡大橋",yomi:"マサバかいきょうおおはし"},
+            {name:"ヒラメが丘団地",yomi:"ヒラメがおかだんち"},
+            {name:"マンタマリア号",yomi:"マンタマリアごう"},
+            {name:"コンブトラック",yomi:"コンブトラック"},
+            {name:"ネギトロ炭鉱",yomi:"ネギトロたんこう"},
+            {name:"デカライン高架下",yomi:"デカラインこうかした"},
+            {name:"ユノハナ大渓谷",yomi:"ゆのはなだいけいこく"},
+            {name:"ゴンズイ地区",yomi:"ごんずいちく"},
+            {name:"ヤガラ市場",yomi:"やがらいちば"},
+            {name:"マテガイ放水路",yomi:"まてがいほうすいろ"},
+            {name:"ナメロウ金属",yomi:"なめろうきんぞく"},
+            {name:"マヒマヒリゾート＆スパ",yomi:"まひまひりぞーとあんどすぱ"},
+            {name:"キンメダイ美術館",yomi:"きんめだいびじゅつかん"},
+            {name:"海女美術大学",yomi:"あまびじゅつだいがく"},
+            {name:"チョウザメ造船",yomi:"ちょうざめぞうせん"},
+            {name:"ザトウマーケット",yomi:"ざとうまーけっと"},
+            {name:"スメーシーワールド",yomi:"すめーしーわーるど"}
+        ];
+
+        // --- DOM要素 ---
+        const dom = {
+            inputWeapon: document.getElementById('input-weapon'),
+            searchInputWeapon: document.getElementById('search-input-weapon'),
+            inputRule: document.getElementById('input-rule'),
+            inputStage: document.getElementById('input-stage'),
+            searchInputStage: document.getElementById('search-input-stage'),
+            inputKills: document.getElementById('input-kills'),
+            inputDeaths: document.getElementById('input-deaths'),
+            filterWeapon: document.getElementById('filter-weapon'),
+            searchFilterWeapon: document.getElementById('search-filter-weapon'),
+            filterRule: document.getElementById('filter-rule'),
+            filterStage: document.getElementById('filter-stage'),
+            searchFilterStage: document.getElementById('search-filter-stage'),
+            addMatchForm: document.getElementById('add-match-form'),
+            historyBody: document.getElementById('history-body'),
+            winRateEl: document.querySelector('#results-display .win-rate'),
+            totalWinsEl: document.getElementById('total-wins'),
+            totalLossesEl: document.getElementById('total-losses'),
+            totalMatchesEl: document.getElementById('total-matches'),
+            killRateEl: document.querySelector('.kill-rate'),
+            totalKillsEl: document.getElementById('total-kills'),
+            totalDeathsEl: document.getElementById('total-deaths'),
+        };
+
+        let matches = [];
+
+        // --- 正規化関数 ---
+        function normalize(str) {
+            if (!str) return '';
+            let s = str;
+            s = s.normalize('NFKC');
+            s = s.toLowerCase();
+            s = s.replace(/[\u30a1-\u30f6]/g, match => String.fromCharCode(match.charCodeAt(0) - 0x60));
+            return s;
+        }
+
+        // --- 関数定義 ---
+
+        function populateSelect(selectElement, options, allOptionText = null, isObject = false) {
+            const currentVal = selectElement.value;
+            selectElement.innerHTML = '';
+            if (allOptionText) {
+                selectElement.innerHTML += `<option value="all">${allOptionText}</option>`;
+            }
+            options.forEach(item => {
+                const value = isObject ? item.name : item;
+                const selected = value === currentVal ? ' selected' : '';
+                selectElement.innerHTML += `<option value="${value}"${selected}>${value}</option>`;
+            });
+            if (options.length === 0 && !allOptionText) {
+                 selectElement.innerHTML = `<option value="">一致なし</option>`;
+            }
+        }
+        
+        function setupSearchableDropdown(searchInput, selectElement, data, allOptionText = null, isObject = false) {
+            populateSelect(selectElement, data, allOptionText, isObject);
+            
+            searchInput.addEventListener('input', () => {
+                const normalizedSearchTerm = normalize(searchInput.value);
+
+                if (!normalizedSearchTerm) {
+                    populateSelect(selectElement, data, allOptionText, isObject);
+                    return;
+                }
+
+                try {
+                    const pattern = normalizedSearchTerm.split('').map(char =>
+                        char.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+                    ).join('.*?');
+                    const regex = new RegExp(pattern);
+    
+                    const filteredData = data.filter(item => {
+                        if (isObject) {
+                            return regex.test(normalize(item.name)) || regex.test(normalize(item.yomi));
+                        }
+                        return regex.test(normalize(item));
+                    });
+                    populateSelect(selectElement, filteredData, allOptionText, isObject);
+                } catch(e) {
+                    populateSelect(selectElement, [], allOptionText, isObject);
+                }
+            });
+        }
+
+        function renderHistoryTable() {
+            dom.historyBody.innerHTML = '';
+            matches.forEach((match, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${match.weapon}</td>
+                    <td>${match.rule}</td>
+                    <td>${match.stage}</td>
+                    <td>${match.result === 'win' ? '勝ち' : '負け'}</td>
+                    <td>${match.kills}K / ${match.deaths}D</td>
+                    <td><button class="delete-btn" onclick="deleteMatch(${index})">削除</button></td>
+                `;
+                dom.historyBody.appendChild(row);
+            });
+        }
+        
+        function filterAndCalculate() {
+            const selectedWeapon = dom.filterWeapon.value;
+            const selectedRule = dom.filterRule.value;
+            const selectedStage = dom.filterStage.value;
+            let filteredMatches = matches;
+            if (selectedWeapon !== 'all') filteredMatches = filteredMatches.filter(m => m.weapon === selectedWeapon);
+            if (selectedRule !== 'all') filteredMatches = filteredMatches.filter(m => m.rule === selectedRule);
+            if (selectedStage !== 'all') filteredMatches = filteredMatches.filter(m => m.stage === selectedStage);
+            
+            const totalMatches = filteredMatches.length;
+            const wins = filteredMatches.filter(m => m.result === 'win').length;
+            const losses = totalMatches - wins;
+            const totalKills = filteredMatches.reduce((sum, match) => sum + match.kills, 0);
+            const totalDeaths = filteredMatches.reduce((sum, match) => sum + match.deaths, 0);
+            let winRate = 0;
+            if (totalMatches > 0) winRate = (wins / totalMatches) * 100;
+
+            let killRate = 0;
+            if (totalDeaths > 0) {
+                killRate = totalKills / totalDeaths;
+            } else if (totalKills > 0) {
+                killRate = Infinity; // デスが0でキルがある場合
+            }
+
+            dom.winRateEl.textContent = `${winRate.toFixed(2)}%`;
+            dom.totalWinsEl.textContent = wins;
+            dom.totalLossesEl.textContent = losses;
+            dom.totalMatchesEl.textContent = totalMatches;
+
+            dom.killRateEl.textContent = killRate === Infinity ? 'Perfect' : killRate.toFixed(2);
+            dom.totalKillsEl.textContent = totalKills;
+            dom.totalDeathsEl.textContent = totalDeaths;
+        }
+
+        function saveMatches() {
+            localStorage.setItem('splatoonMatches', JSON.stringify(matches));
+        }
+
+        window.deleteMatch = function(index) {
+            if (confirm('この試合記録を削除しますか？')) {
+                matches.splice(index, 1);
+                saveMatches();
+                renderHistoryTable();
+                filterAndCalculate();
+            }
+        }
+
+        // --- イベントリスナー ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const storedMatches = localStorage.getItem('splatoonMatches');
+            if (storedMatches) matches = JSON.parse(storedMatches);
+            
+            // ★★★ ブキとステージの両方でisObjectフラグをtrueに ★★★
+            setupSearchableDropdown(dom.searchInputWeapon, dom.inputWeapon, weapons, null, true);
+            setupSearchableDropdown(dom.searchFilterWeapon, dom.filterWeapon, weapons, 'すべてのブキ', true);
+            setupSearchableDropdown(dom.searchInputStage, dom.inputStage, stages, null, true);
+            setupSearchableDropdown(dom.searchFilterStage, dom.filterStage, stages, 'すべてのステージ', true);
+            
+            populateSelect(dom.inputRule, rules);
+            populateSelect(dom.filterRule, rules, 'すべてのルール');
+
+            renderHistoryTable();
+            filterAndCalculate();
+        });
+
+        dom.addMatchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!dom.inputWeapon.value || !dom.inputStage.value) {
+                alert('ブキとステージを選択してください。');
+                return;
+            }
+            const newMatch = {
+                weapon: dom.inputWeapon.value,
+                rule: dom.inputRule.value,
+                stage: dom.inputStage.value,
+                kills: parseInt(dom.inputKills.value, 10),
+                deaths: parseInt(dom.inputDeaths.value, 10),
+                result: document.querySelector('input[name="result"]:checked').value
+            };
+            matches.unshift(newMatch);
+            saveMatches();
+            renderHistoryTable();
+            filterAndCalculate();
+
+            dom.inputKills.value = 0;
+            dom.inputDeaths.value = 0;
+            document.querySelector('input[name="result"][value="win"]').checked = true;
+        });
+
+        dom.filterWeapon.addEventListener('change', filterAndCalculate);
+        dom.filterRule.addEventListener('change', filterAndCalculate);
+        dom.filterStage.addEventListener('change', filterAndCalculate);
+    </script>
+</body>
+</html>
